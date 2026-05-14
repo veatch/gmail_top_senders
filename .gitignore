@@ -1,0 +1,10 @@
+*.plan.md
+credentials.json
+token.json
+*.sqlite
+venv/
+.venv/
+__pycache__/
+*.pyc
+.Python
+.env
