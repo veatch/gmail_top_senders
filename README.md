@@ -58,6 +58,9 @@ If you prefer activating the environment: `source .venv/bin/activate` (Unix) or 
 
 ### Without uv (pip)
 
+Note: I haven't tested this installation method. If you try it, let me know if
+you have any issues, or if it works as expected.
+
 From the repo root, with a virtualenv activated:
 
 ```bash
@@ -81,6 +84,10 @@ Options:
 - `-q` / `--query` — Gmail search string (default: `in:anywhere -in:spam -in:trash`)
 - `--max-messages N` — stop after N messages (testing)
 - `-v` / `--verbose` — progress on stderr + rate-limit backoff messages
+- `--incremental` - skip fetching metadata for message IDs already
+  in the DB (still performs a full messages.list pass)
+- `--max-quota-units-per-minute` - (default 12000) to pace requests
+  below the Gmail per-user quota ceiling of 15000 units/min
 
 **Report** from the local database only (no API calls; safe to rerun with different grouping):
 

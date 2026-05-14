@@ -59,6 +59,21 @@ def main(argv=None):
         action="store_true",
         help="Print progress and rate-limit backoff messages to stderr",
     )
+    p_sync.add_argument(
+        "--max-quota-units-per-minute",
+        type=float,
+        default=12000.0,
+        metavar="N",
+        help="Throttle Gmail usage to ~N quota units/min per user (0 = no pacing). "
+        "messages.get uses 5 units each; Gmail allows ~15000/min. Default: %(default)s",
+    )
+    p_sync.add_argument(
+        "--incremental",
+        action="store_true",
+        help="Keep existing rows; only fetch metadata for message IDs not yet in the DB. "
+        "Still lists the full mailbox (messages.list cost). Use the same -q as prior sync "
+        "or run a full sync to rebuild.",
+    )
 
     p_rep = sub.add_parser(
         "report", help="Rank senders using only the local database (no Gmail API calls)"
@@ -97,8 +112,17 @@ def main(argv=None):
                 args.query,
                 args.max_messages,
                 args.verbose,
+                args.max_quota_units_per_minute,
+                incremental=args.incremental,
             )
-            print("Synced %s messages into %s" % (n, args.db))
+            if args.incremental:
+                total = db.message_count(conn)
+                print(
+                    "Applied %s new or updated message(s) in %s (%s in database)."
+                    % (n, args.db, total)
+                )
+            else:
+                print("Synced %s messages into %s" % (n, args.db))
         finally:
             conn.close()
     elif args.command == "report":

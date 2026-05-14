@@ -125,3 +125,30 @@ def aggregate_by_sender(
 def message_count(conn: sqlite3.Connection) -> int:
     row = conn.execute("SELECT COUNT(*) AS c FROM messages").fetchone()
     return int(row["c"]) if row else 0
+
+
+def ids_present(conn: sqlite3.Connection, ids: List[str]) -> set:
+    """Return the subset of ``ids`` that already exist as ``message_id`` rows."""
+    if not ids:
+        return set()
+    present = set()
+    # SQLite bind parameter limit is often 999; stay under with smaller chunks.
+    chunk_size = 400
+    for i in range(0, len(ids), chunk_size):
+        chunk = ids[i : i + chunk_size]
+        placeholders = ",".join("?" * len(chunk))
+        cur = conn.execute(
+            "SELECT message_id FROM messages WHERE message_id IN (%s)"
+            % placeholders,
+            chunk,
+        )
+        for row in cur.fetchall():
+            present.add(row["message_id"])
+    return present
+
+
+def get_sync_meta(conn: sqlite3.Connection, key: str) -> Optional[str]:
+    row = conn.execute(
+        "SELECT value FROM sync_meta WHERE key = ?", (key,)
+    ).fetchone()
+    return str(row["value"]) if row else None

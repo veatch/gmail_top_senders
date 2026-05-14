@@ -2,6 +2,7 @@
 
 import datetime
 import sys
+import time
 from typing import Any, Dict, List, Optional
 
 from googleapiclient.errors import HttpError
@@ -14,6 +15,32 @@ DEFAULT_QUERY = "in:anywhere -in:spam -in:trash"
 LIST_PAGE_SIZE = 500
 # Gmail batch limit is 50 requests per batch.
 BATCH_GET_SIZE = 50
+# Per https://developers.google.com/workspace/gmail/api/reference/quota
+QUOTA_UNITS_MESSAGES_LIST = 5
+QUOTA_UNITS_MESSAGES_GET = 5
+# Per-user limit is 15_000 units/min; default leaves headroom for bursts / retries.
+DEFAULT_MAX_QUOTA_UNITS_PER_MINUTE = 12000
+
+
+def _pace_after_quota_units(
+    units,  # type: int
+    max_units_per_minute,  # type: Optional[float]
+    verbose,  # type: bool
+):
+    # type: (...) -> None
+    """Sleep long enough to average at most ``max_units_per_minute`` quota units."""
+    if not max_units_per_minute or max_units_per_minute <= 0 or units <= 0:
+        return
+    delay = (float(units) / float(max_units_per_minute)) * 60.0
+    if delay <= 0:
+        return
+    if verbose and delay >= 1.0:
+        print(
+            "Pacing: sleeping %.1fs (~%s quota units toward %s/min cap)..."
+            % (delay, units, int(max_units_per_minute)),
+            file=sys.stderr,
+        )
+    time.sleep(delay)
 
 
 def _utc_now_iso():
@@ -59,6 +86,7 @@ def _fetch_batch(
     service,  # type: Any
     message_ids,  # type: List[str]
     verbose,  # type: bool
+    quota_cap,  # type: Optional[float]
 ):
     # type: (...) -> Dict[str, Dict[str, Any]]
     """Return message id -> full message resource (metadata)."""
@@ -98,6 +126,9 @@ def _fetch_batch(
                     metadataHeaders=["From"],
                 )
                 results[mid] = execute_with_retry(req, verbose=verbose)
+                _pace_after_quota_units(
+                    QUOTA_UNITS_MESSAGES_GET, quota_cap, verbose
+                )
             except HttpError as e:
                 if verbose:
                     print("Failed to fetch %s: %s" % (mid, e), file=sys.stderr)
@@ -110,11 +141,31 @@ def run_sync(
     query,  # type: str
     max_messages,  # type: Optional[int]
     verbose,  # type: bool
+    max_quota_units_per_minute=None,  # type: Optional[float]
+    incremental=False,  # type: bool
 ):
     # type: (...) -> int
-    """List + fetch + store. Returns number of messages stored."""
-    db.clear_messages(conn)
-    conn.commit()
+    """List + fetch + store. Returns number of message rows written this run."""
+    if max_quota_units_per_minute is None:
+        cap = float(DEFAULT_MAX_QUOTA_UNITS_PER_MINUTE)
+    elif max_quota_units_per_minute <= 0:
+        cap = None  # type: Optional[float]
+    else:
+        cap = float(max_quota_units_per_minute)
+
+    if incremental:
+        prev_query = db.get_sync_meta(conn, "last_query")
+        if prev_query is not None and prev_query != query and verbose:
+            print(
+                "Note: --query differs from last sync (%r). "
+                "The database may mix results from multiple queries; "
+                "run a full sync without --incremental to rebuild."
+                % (prev_query,),
+                file=sys.stderr,
+            )
+    else:
+        db.clear_messages(conn)
+        conn.commit()
 
     total_stored = 0
     page_token = None  # type: Optional[str]
@@ -128,6 +179,7 @@ def run_sync(
             maxResults=LIST_PAGE_SIZE,
         )
         resp = execute_with_retry(req, verbose=verbose)
+        _pace_after_quota_units(QUOTA_UNITS_MESSAGES_LIST, cap, verbose)
         messages = resp.get("messages") or []
         ids = [m.get("id") for m in messages if m.get("id")]
         page_token = resp.get("nextPageToken")
@@ -144,9 +196,22 @@ def run_sync(
                 break
             continue
 
-        for i in range(0, len(ids), BATCH_GET_SIZE):
-            chunk = ids[i : i + BATCH_GET_SIZE]
-            by_id = _fetch_batch(service, chunk, verbose=verbose)
+        if incremental:
+            have = db.ids_present(conn, ids)
+            missing = [mid for mid in ids if mid not in have]
+        else:
+            missing = ids
+
+        for i in range(0, len(missing), BATCH_GET_SIZE):
+            chunk = missing[i : i + BATCH_GET_SIZE]
+            if not chunk:
+                continue
+            by_id = _fetch_batch(service, chunk, verbose=verbose, quota_cap=cap)
+            _pace_after_quota_units(
+                len(chunk) * QUOTA_UNITS_MESSAGES_GET,
+                cap,
+                verbose,
+            )
             rows = []
             for mid in chunk:
                 msg = by_id.get(mid)
@@ -159,7 +224,7 @@ def run_sync(
                 total_stored += len(rows)
                 if verbose:
                     print(
-                        "Stored %s messages (total %s)..."
+                        "Stored %s messages (written this run: %s)..."
                         % (len(rows), total_stored),
                         file=sys.stderr,
                     )
