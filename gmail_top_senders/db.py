@@ -25,7 +25,9 @@ def init_schema(conn: sqlite3.Connection) -> None:
             from_display_name TEXT,
             subject TEXT,
             size_estimate INTEGER,
-            fetched_at TEXT
+            fetched_at TEXT,
+            deleted_at TEXT,
+            kept_at TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_messages_addr ON messages (from_address_normalized);
         CREATE INDEX IF NOT EXISTS idx_messages_date ON messages (internal_date);
@@ -82,20 +84,24 @@ def aggregate_by_sender(
     conn: sqlite3.Connection,
     group_by: str,
     order_by: str,
-) -> List[Tuple[str, int, int, Optional[int]]]:
-    """Return rows: (sender_key, message_count, total_size, avg_size).
+    include_deleted: bool = False,
+) -> List[Tuple[str, int, int, Optional[int], int]]:
+    """Return rows: (sender_key, message_count, total_size, avg_size, kept_count).
 
     ``sender_key`` is normalized address or display label for ``group_by``.
+    Excludes deleted messages unless ``include_deleted`` is True.
     """
     order_by_clause = ""
     if order_by == "total-size":
-        order_by_clause = "ORDER BY 2 DESC"
+        order_by_clause = "ORDER BY total_size DESC"
     elif order_by == "sender":
-        order_by_clause = "ORDER BY 1"
+        order_by_clause = "ORDER BY sender_key"
     elif order_by == "message-count":
-        order_by_clause = "ORDER BY 3 DESC"
+        order_by_clause = "ORDER BY cnt DESC"
     elif order_by == "avg-size":
-        order_by_clause = "ORDER BY 4 DESC"
+        order_by_clause = "ORDER BY avg_size DESC"
+
+    deleted_filter = "" if include_deleted else "WHERE deleted_at IS NULL"
 
     if group_by == "address":
         sql = """
@@ -106,11 +112,13 @@ def aggregate_by_sender(
                 END AS sender_key,
                 COALESCE(SUM(size_estimate), 0) AS total_size,
                 COUNT(*) AS cnt,
-                CAST(ROUND(COALESCE(AVG(size_estimate), 0)) AS INTEGER) AS avg_size
+                CAST(ROUND(COALESCE(AVG(size_estimate), 0)) AS INTEGER) AS avg_size,
+                SUM(CASE WHEN kept_at IS NOT NULL THEN 1 ELSE 0 END) AS kept_count
             FROM messages
+            %s
             GROUP BY 1
             %s
-        """ % order_by_clause
+        """ % (deleted_filter, order_by_clause)
     elif group_by == "display-name":
         sql = """
             SELECT
@@ -120,18 +128,20 @@ def aggregate_by_sender(
                 END AS sender_key,
                 COUNT(*) AS cnt,
                 COALESCE(SUM(size_estimate), 0) AS total_size,
-                CAST(ROUND(COALESCE(AVG(size_estimate), 0)) AS INTEGER) AS avg_size
+                CAST(ROUND(COALESCE(AVG(size_estimate), 0)) AS INTEGER) AS avg_size,
+                SUM(CASE WHEN kept_at IS NOT NULL THEN 1 ELSE 0 END) AS kept_count
             FROM messages
+            %s
             GROUP BY 1
             %s
-        """ % order_by_clause
+        """ % (deleted_filter, order_by_clause)
     else:
         raise ValueError("group_by must be 'address' or 'display-name'")
 
     cur = conn.execute(sql)
     rows = []
     for r in cur.fetchall():
-        rows.append((r["sender_key"], int(r["cnt"]), int(r["total_size"]), r["avg_size"]))
+        rows.append((r["sender_key"], int(r["cnt"]), int(r["total_size"]), r["avg_size"], int(r["kept_count"])))
     return rows
 
 
@@ -139,14 +149,20 @@ def messages_by_sender(
     conn: sqlite3.Connection,
     sender: str,
     top_n: Optional[int] = None,
-) -> List[Tuple[str, Optional[str], int, Optional[int], str, str]]:
+    include_deleted: bool = False,
+) -> List[Tuple[str, Optional[str], int, Optional[int], str, str, Optional[str], Optional[str]]]:
     """Return rows of individual messages matching a sender string.
 
     Rows are ordered by size descending.
+    Each row: (message_id, subject, size_estimate, internal_date,
+               from_address_normalized, from_display_name, deleted_at, kept_at).
+    Excludes deleted messages unless ``include_deleted`` is True.
     """
     sender_key = sender.strip()
     if not sender_key:
         return []
+
+    deleted_filter = "" if include_deleted else "AND deleted_at IS NULL"
 
     sql = """
         SELECT
@@ -155,13 +171,18 @@ def messages_by_sender(
             COALESCE(size_estimate, 0) AS size_estimate,
             internal_date,
             COALESCE(from_address_normalized, '') AS from_address_normalized,
-            COALESCE(from_display_name, '') AS from_display_name
+            COALESCE(from_display_name, '') AS from_display_name,
+            deleted_at,
+            kept_at
         FROM messages
-        WHERE TRIM(IFNULL(from_address_normalized, '')) = ?
-           OR LOWER(TRIM(IFNULL(from_display_name, ''))) = LOWER(?)
+        WHERE (
+            TRIM(IFNULL(from_address_normalized, '')) = ?
+            OR LOWER(TRIM(IFNULL(from_display_name, ''))) = LOWER(?)
+        )
+        %s
         ORDER BY size_estimate DESC
-    """
-    params = [sender_key, sender_key]
+    """ % deleted_filter
+    params: List = [sender_key, sender_key]
     if top_n is not None:
         sql += "LIMIT ?"
         params.append(top_n)
@@ -177,6 +198,8 @@ def messages_by_sender(
                 int(r["internal_date"]) if r["internal_date"] is not None else None,
                 r["from_address_normalized"],
                 r["from_display_name"],
+                r["deleted_at"],
+                r["kept_at"],
             )
         )
     return rows

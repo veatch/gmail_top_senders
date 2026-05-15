@@ -108,6 +108,11 @@ def main(argv=None):
         action="store_true",
         help="CSV output to stdout instead of a table",
     )
+    p_rep.add_argument(
+        "--include-deleted",
+        action="store_true",
+        help="Include messages marked as deleted (shown with [deleted] status)",
+    )
 
     args = parser.parse_args(argv)
 
@@ -149,6 +154,7 @@ def main(argv=None):
                 args.csv,
                 args.sender,
                 sys.stdout,
+                include_deleted=args.include_deleted,
             )
         finally:
             conn.close()
