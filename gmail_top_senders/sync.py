@@ -65,6 +65,8 @@ def _message_to_row(
     internal_date = message.get("internalDate")
     if internal_date is not None:
         internal_date = int(internal_date)
+    headers = message.get('payload', {}).get('headers')
+    subject = next((h['value'] for h in headers if h['name'] == 'Subject'), None) or ""
     size_est = message.get("sizeEstimate")
     if size_est is not None:
         size_est = int(size_est)
@@ -77,6 +79,7 @@ def _message_to_row(
         raw_from,
         addr_norm,
         display,
+        subject,
         size_est,
         fetched_at,
     )
@@ -103,7 +106,7 @@ def _fetch_batch(
                 userId="me",
                 id=mid,
                 format="metadata",
-                metadataHeaders=["From"],
+                metadataHeaders=["From", "Subject"],
             ),
             request_id=mid,
         )
@@ -123,7 +126,7 @@ def _fetch_batch(
                     userId="me",
                     id=mid,
                     format="metadata",
-                    metadataHeaders=["From"],
+                    metadataHeaders=["From", "Subject"],
                 )
                 results[mid] = execute_with_retry(req, verbose=verbose)
                 _pace_after_quota_units(

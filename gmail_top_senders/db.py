@@ -23,6 +23,7 @@ def init_schema(conn: sqlite3.Connection) -> None:
             from_raw TEXT,
             from_address_normalized TEXT,
             from_display_name TEXT,
+            subject TEXT,
             size_estimate INTEGER,
             fetched_at TEXT
         );
@@ -53,6 +54,7 @@ def insert_many(
             str,
             str,
             str,
+            str,
             Optional[int],
             str,
         ]
@@ -62,8 +64,8 @@ def insert_many(
         """
         INSERT OR REPLACE INTO messages (
             message_id, thread_id, internal_date, from_raw,
-            from_address_normalized, from_display_name, size_estimate, fetched_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            from_address_normalized, from_display_name, subject, size_estimate, fetched_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         rows,
     )
