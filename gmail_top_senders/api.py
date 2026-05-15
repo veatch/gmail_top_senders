@@ -107,7 +107,7 @@ def execute_with_retry(
     max_delay=120.0,
     verbose=False,
 ):
-    """Call ``request.execute()`` with exponential backoff on rate limits."""
+    """Call ``request.execute()`` with exponential backoff on rate limits and transient errors."""
     attempt = 0
     while True:
         attempt += 1
@@ -124,6 +124,20 @@ def execute_with_retry(
                     print(
                         "Rate limited (HTTP %s). Sleeping %.1fs before retry %s/%s..."
                         % (status, delay, attempt, max_attempts)
+                    )
+                time.sleep(delay)
+                continue
+            raise
+        except (TimeoutError, OSError, IOError) as e:
+            # Transient network errors: timeout, connection reset, etc.
+            if attempt < max_attempts:
+                exp = min(max_delay, base_delay * (2.0 ** (attempt - 1)))
+                jitter = random.uniform(0, 0.25 * exp)
+                delay = exp + jitter
+                if verbose:
+                    print(
+                        "Transient network error (%s). Sleeping %.1fs before retry %s/%s..."
+                        % (type(e).__name__, delay, attempt, max_attempts)
                     )
                 time.sleep(delay)
                 continue
