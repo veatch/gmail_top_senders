@@ -42,13 +42,14 @@ def write_report(
     sender,  # type: Optional[str]
     out,  # type: TextIO
     include_deleted=False,  # type: bool
+    subject_filter=None,  # type: Optional[str]
 ):
     # type: (...) -> None
     """Print top senders or largest messages for a specific sender to ``out``."""
     if sender:
-        rows = db.messages_by_sender(conn, sender, top_n, include_deleted=include_deleted)
+        rows = db.messages_by_sender(conn, sender, top_n, include_deleted=include_deleted, subject_filter=subject_filter)
     else:
-        rows = db.aggregate_by_sender(conn, group_by, order_by, include_deleted=include_deleted)
+        rows = db.aggregate_by_sender(conn, group_by, order_by, include_deleted=include_deleted, subject_filter=subject_filter)
         if top_n:
             rows = rows[:top_n]
 
@@ -102,6 +103,12 @@ def write_report(
             out.write("-" * (w0 + w1 + w2 + 4) + "\n")
             for line in lines:
                 out.write(fmt % (line[0], line[1], line[2]))
+
+        if subject_filter:
+            total_size = sum(r[2] for r in rows)
+            out.write("─── %d message%s, %s total\n" % (
+                len(rows), "" if len(rows) == 1 else "s", _format_bytes(total_size)
+            ))
         return
 
     hdr_sender = "sender"
@@ -141,3 +148,12 @@ def write_report(
         out.write("-" * (w0 + w1 + w2 + w3 + 6) + "\n")
         for line in lines2:
             out.write(fmt % (line[0], line[1], line[2], line[3]))
+
+    if subject_filter:
+        total_msgs = sum(r[1] for r in rows)
+        total_size = sum(r[2] for r in rows)
+        out.write("─── %d sender%s, %d message%s, %s total\n" % (
+            len(rows), "" if len(rows) == 1 else "s",
+            total_msgs, "" if total_msgs == 1 else "s",
+            _format_bytes(total_size),
+        ))

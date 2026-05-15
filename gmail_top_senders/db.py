@@ -85,6 +85,7 @@ def aggregate_by_sender(
     group_by: str,
     order_by: str,
     include_deleted: bool = False,
+    subject_filter: Optional[str] = None,
 ) -> List[Tuple[str, int, int, Optional[int], int]]:
     """Return rows: (sender_key, message_count, total_size, avg_size, kept_count).
 
@@ -101,7 +102,14 @@ def aggregate_by_sender(
     elif order_by == "avg-size":
         order_by_clause = "ORDER BY avg_size DESC"
 
-    deleted_filter = "" if include_deleted else "WHERE deleted_at IS NULL"
+    conditions = []
+    params: List = []
+    if not include_deleted:
+        conditions.append("deleted_at IS NULL")
+    if subject_filter:
+        conditions.append("LOWER(COALESCE(subject, '')) LIKE '%' || LOWER(?) || '%'")
+        params.append(subject_filter)
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 
     if group_by == "address":
         sql = """
@@ -118,7 +126,7 @@ def aggregate_by_sender(
             %s
             GROUP BY 1
             %s
-        """ % (deleted_filter, order_by_clause)
+        """ % (where, order_by_clause)
     elif group_by == "display-name":
         sql = """
             SELECT
@@ -134,11 +142,11 @@ def aggregate_by_sender(
             %s
             GROUP BY 1
             %s
-        """ % (deleted_filter, order_by_clause)
+        """ % (where, order_by_clause)
     else:
         raise ValueError("group_by must be 'address' or 'display-name'")
 
-    cur = conn.execute(sql)
+    cur = conn.execute(sql, params)
     rows = []
     for r in cur.fetchall():
         rows.append((r["sender_key"], int(r["cnt"]), int(r["total_size"]), r["avg_size"], int(r["kept_count"])))
@@ -150,6 +158,7 @@ def messages_by_sender(
     sender: str,
     top_n: Optional[int] = None,
     include_deleted: bool = False,
+    subject_filter: Optional[str] = None,
 ) -> List[Tuple[str, Optional[str], int, Optional[int], str, str, Optional[str], Optional[str]]]:
     """Return rows of individual messages matching a sender string.
 
@@ -162,7 +171,14 @@ def messages_by_sender(
     if not sender_key:
         return []
 
-    deleted_filter = "" if include_deleted else "AND deleted_at IS NULL"
+    extra_conditions = []
+    params: List = [sender_key, sender_key]
+    if not include_deleted:
+        extra_conditions.append("deleted_at IS NULL")
+    if subject_filter:
+        extra_conditions.append("LOWER(COALESCE(subject, '')) LIKE '%' || LOWER(?) || '%'")
+        params.append(subject_filter)
+    extra = (" AND " + " AND ".join(extra_conditions)) if extra_conditions else ""
 
     sql = """
         SELECT
@@ -178,11 +194,9 @@ def messages_by_sender(
         WHERE (
             TRIM(IFNULL(from_address_normalized, '')) = ?
             OR LOWER(TRIM(IFNULL(from_display_name, ''))) = LOWER(?)
-        )
-        %s
+        )%s
         ORDER BY size_estimate DESC
-    """ % deleted_filter
-    params: List = [sender_key, sender_key]
+    """ % extra
     if top_n is not None:
         sql += "LIMIT ?"
         params.append(top_n)

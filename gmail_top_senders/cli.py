@@ -113,6 +113,12 @@ def main(argv=None):
         action="store_true",
         help="Include messages marked as deleted (shown with [deleted] status)",
     )
+    p_rep.add_argument(
+        "--subject",
+        default=None,
+        metavar="TEXT",
+        help="Filter to messages whose subject contains TEXT (case-insensitive)",
+    )
 
     args = parser.parse_args(argv)
 
@@ -145,7 +151,7 @@ def main(argv=None):
         conn = db.connect(args.db)
         try:
             db.init_schema(conn)
-            top_n = args.top if args.top is not None else (20 if args.sender else 50)
+            top_n = args.top if args.top is not None else (None if args.subject else (20 if args.sender else 50))
             write_report(
                 conn,
                 args.group_by,
@@ -155,6 +161,7 @@ def main(argv=None):
                 args.sender,
                 sys.stdout,
                 include_deleted=args.include_deleted,
+                subject_filter=args.subject,
             )
         finally:
             conn.close()
