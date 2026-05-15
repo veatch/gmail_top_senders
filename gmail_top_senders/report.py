@@ -1,6 +1,7 @@
 """Aggregate and print reports from the local SQLite database."""
 
 import csv
+import datetime
 import sqlite3
 from typing import List, Optional, TextIO, Tuple
 
@@ -21,29 +22,77 @@ def _format_bytes(num):
     return "%.1f TB" % n
 
 
+def _format_date(internal_date):
+    # type: (Optional[int]) -> str
+    if internal_date is None:
+        return "-"
+    try:
+        dt = datetime.datetime.utcfromtimestamp(internal_date / 1000.0)
+        return dt.strftime("%Y-%m-%d")
+    except Exception:
+        return str(internal_date)
+
+
 def write_report(
     conn,  # type: sqlite3.Connection
     group_by,  # type: str
     order_by,  # type: str
     top_n,  # type: int
     as_csv,  # type: bool
+    sender,  # type: Optional[str]
     out,  # type: TextIO
 ):
     # type: (...) -> None
-    """Print top senders to ``out``."""
-    rows = db.aggregate_by_sender(conn, group_by, order_by)
-    if top_n:
-        rows = rows[:top_n]
+    """Print top senders or largest messages for a specific sender to ``out``."""
+    if sender:
+        rows = db.messages_by_sender(conn, sender, top_n)
+    else:
+        rows = db.aggregate_by_sender(conn, group_by, order_by)
+        if top_n:
+            rows = rows[:top_n]
 
     if not rows:
-        out.write("No messages in database. Run `sync` first.\n")
+        if sender:
+            out.write("No messages found for sender: %s\n" % sender)
+        else:
+            out.write("No messages in database. Run `sync` first.\n")
         return
 
     if as_csv:
         w = csv.writer(out)
-        w.writerow(["sender_key", "message_count", "total_size_bytes", "avg_size_bytes"])
-        for sender_key, cnt, total_sz, avg_sz in rows:
-            w.writerow([sender_key, cnt, total_sz, avg_sz if avg_sz is not None else ""])
+        if sender:
+            w.writerow([
+                "subject",
+                "date",
+                "size_bytes",
+            ])
+            for _, subject, size, internal_date, _, _ in rows:
+                w.writerow([subject, _format_date(internal_date), size])
+        else:
+            w.writerow(["sender_key", "message_count", "total_size_bytes", "avg_size_bytes"])
+            for sender_key, cnt, total_sz, avg_sz in rows:
+                w.writerow([sender_key, cnt, total_sz, avg_sz if avg_sz is not None else ""])
+        return
+
+    if sender:
+        out.write("Largest messages from %s\n" % sender)
+        hdr_subject = "subject"
+        hdr_date = "date"
+        hdr_size = "size"
+
+        lines = []  # type: List[Tuple[str, str, str]]
+        for _, subject, size, internal_date, _, _ in rows:
+            lines.append((subject or "", _format_date(internal_date), _format_bytes(size)))
+
+        w0 = max(len(hdr_subject), max(len(l[0]) for l in lines))
+        w1 = max(len(hdr_date), max(len(l[1]) for l in lines))
+        w2 = max(len(hdr_size), max(len(l[2]) for l in lines))
+
+        fmt = "%%-%ds  %%-%ds  %%-%ds\n" % (w0, w1, w2)
+        out.write(fmt % (hdr_subject, hdr_date, hdr_size))
+        out.write("-" * (w0 + w1 + w2 + 4) + "\n")
+        for line in lines:
+            out.write(fmt % line)
         return
 
     # column widths

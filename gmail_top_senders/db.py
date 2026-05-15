@@ -135,6 +135,53 @@ def aggregate_by_sender(
     return rows
 
 
+def messages_by_sender(
+    conn: sqlite3.Connection,
+    sender: str,
+    top_n: Optional[int] = None,
+) -> List[Tuple[str, Optional[str], int, Optional[int], str, str]]:
+    """Return rows of individual messages matching a sender string.
+
+    Rows are ordered by size descending.
+    """
+    sender_key = sender.strip()
+    if not sender_key:
+        return []
+
+    sql = """
+        SELECT
+            message_id,
+            subject,
+            COALESCE(size_estimate, 0) AS size_estimate,
+            internal_date,
+            COALESCE(from_address_normalized, '') AS from_address_normalized,
+            COALESCE(from_display_name, '') AS from_display_name
+        FROM messages
+        WHERE TRIM(IFNULL(from_address_normalized, '')) = ?
+           OR LOWER(TRIM(IFNULL(from_display_name, ''))) = LOWER(?)
+        ORDER BY size_estimate DESC
+    """
+    params = [sender_key, sender_key]
+    if top_n is not None:
+        sql += "LIMIT ?"
+        params.append(top_n)
+
+    cur = conn.execute(sql, params)
+    rows = []
+    for r in cur.fetchall():
+        rows.append(
+            (
+                r["message_id"],
+                r["subject"],
+                int(r["size_estimate"]),
+                int(r["internal_date"]) if r["internal_date"] is not None else None,
+                r["from_address_normalized"],
+                r["from_display_name"],
+            )
+        )
+    return rows
+
+
 def message_count(conn: sqlite3.Connection) -> int:
     row = conn.execute("SELECT COUNT(*) AS c FROM messages").fetchone()
     return int(row["c"]) if row else 0

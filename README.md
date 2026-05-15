@@ -94,6 +94,8 @@ Options:
 ```bash
 uv run python -m gmail_top_senders report --db gmail_metadata.sqlite
 uv run python -m gmail_top_senders report --db gmail_metadata.sqlite --group-by display-name --top 30
+uv run python -m gmail_top_senders report --db gmail_metadata.sqlite --sender alice@example.com
+uv run python -m gmail_top_senders report --db gmail_metadata.sqlite --sender alice@example.com --top 40
 uv run python -m gmail_top_senders report --db gmail_metadata.sqlite --csv > top.csv
 ```
 

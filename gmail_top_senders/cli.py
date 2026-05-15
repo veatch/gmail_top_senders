@@ -92,11 +92,16 @@ def main(argv=None):
         help="Order by total size (default), sender, message count, or average size",
     )
     p_rep.add_argument(
+        "--sender",
+        default=None,
+        help="Show largest messages from a single sender (address or display name)",
+    )
+    p_rep.add_argument(
         "--top",
         type=int,
-        default=50,
+        default=None,
         metavar="N",
-        help="Show only the top N senders (default: %(default)s)",
+        help="Show only the top N senders, or top N messages when --sender is used",
     )
     p_rep.add_argument(
         "--csv",
@@ -135,12 +140,14 @@ def main(argv=None):
         conn = db.connect(args.db)
         try:
             db.init_schema(conn)
+            top_n = args.top if args.top is not None else (20 if args.sender else 50)
             write_report(
                 conn,
                 args.group_by,
                 args.order_by,
-                args.top,
+                top_n,
                 args.csv,
+                args.sender,
                 sys.stdout,
             )
         finally:
