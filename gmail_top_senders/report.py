@@ -24,13 +24,14 @@ def _format_bytes(num):
 def write_report(
     conn,  # type: sqlite3.Connection
     group_by,  # type: str
+    order_by,  # type: str
     top_n,  # type: int
     as_csv,  # type: bool
     out,  # type: TextIO
 ):
     # type: (...) -> None
     """Print top senders to ``out``."""
-    rows = db.aggregate_by_sender(conn, group_by)
+    rows = db.aggregate_by_sender(conn, group_by, order_by)
     if top_n:
         rows = rows[:top_n]
 

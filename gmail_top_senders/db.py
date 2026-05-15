@@ -79,11 +79,22 @@ def set_sync_meta(conn: sqlite3.Connection, key: str, value: str) -> None:
 def aggregate_by_sender(
     conn: sqlite3.Connection,
     group_by: str,
+    order_by: str,
 ) -> List[Tuple[str, int, int, Optional[int]]]:
     """Return rows: (sender_key, message_count, total_size, avg_size).
 
     ``sender_key`` is normalized address or display label for ``group_by``.
     """
+    order_by_clause = ""
+    if order_by == "total-size":
+        order_by_clause = "ORDER BY 2 DESC"
+    elif order_by == "sender":
+        order_by_clause = "ORDER BY 1"
+    elif order_by == "message-count":
+        order_by_clause = "ORDER BY 3 DESC"
+    elif order_by == "avg-size":
+        order_by_clause = "ORDER BY 4 DESC"
+
     if group_by == "address":
         sql = """
             SELECT
@@ -91,13 +102,13 @@ def aggregate_by_sender(
                     WHEN TRIM(IFNULL(from_address_normalized, '')) = '' THEN '(empty)'
                     ELSE from_address_normalized
                 END AS sender_key,
-                COUNT(*) AS cnt,
                 COALESCE(SUM(size_estimate), 0) AS total_size,
+                COUNT(*) AS cnt,
                 CAST(ROUND(COALESCE(AVG(size_estimate), 0)) AS INTEGER) AS avg_size
             FROM messages
             GROUP BY 1
-            ORDER BY 2 DESC, 3 DESC
-        """
+            %s
+        """ % order_by_clause
     elif group_by == "display-name":
         sql = """
             SELECT
@@ -110,8 +121,8 @@ def aggregate_by_sender(
                 CAST(ROUND(COALESCE(AVG(size_estimate), 0)) AS INTEGER) AS avg_size
             FROM messages
             GROUP BY 1
-            ORDER BY 2 DESC, 3 DESC
-        """
+            %s
+        """ % order_by_clause
     else:
         raise ValueError("group_by must be 'address' or 'display-name'")
 

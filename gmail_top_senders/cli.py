@@ -86,6 +86,12 @@ def main(argv=None):
         help="Group by sending address (default) or From display name",
     )
     p_rep.add_argument(
+        "--order-by",
+        choices=["total-size", "sender", "message-count", "avg-size"],
+        default="total-size",
+        help="Order by total size (default), sender, message count, or average size",
+    )
+    p_rep.add_argument(
         "--top",
         type=int,
         default=50,
@@ -132,6 +138,7 @@ def main(argv=None):
             write_report(
                 conn,
                 args.group_by,
+                args.order_by,
                 args.top,
                 args.csv,
                 sys.stdout,
