@@ -38,9 +38,9 @@
     <tr{% if deleted_at %} class="deleted"{% endif %}>
       <td>
         {% if thread_id %}
-          <a href="https://mail.google.com/mail/u/0/#all/{{ thread_id }}" target="_blank" rel="noopener">{{ subject_text or '(no subject)' }}</a>
+          <a href="https://mail.google.com/mail/u/0/#all/{{ thread_id }}" target="_blank" rel="noopener" title="{{ subject_text }}">{{ (subject_text or '(no subject)') | truncate(80, killwords=False, end='…') }}</a>
         {% else %}
-          {{ subject_text or '(no subject)' }}
+          <span title="{{ subject_text }}">{{ (subject_text or '(no subject)') | truncate(80, killwords=False, end='…') }}</span>
         {% endif %}
       </td>
       <td class="muted">{{ internal_date | format_date }}</td>
@@ -58,10 +58,16 @@
 </table>
 
 <p class="summary">
-  {{ rows | length }} message{{ '' if rows | length == 1 else 's' }},
-  {{ total_size | format_bytes }} total
-  {% if subject %} matching <em>"{{ subject }}"</em>{% endif %}
+  Showing {{ rows | length }} of {{ total_messages }} message{{ '' if total_messages == 1 else 's' }}
+  ({{ total_size | format_bytes }} total{% if subject %} matching <em>"{{ subject }}"</em>{% endif %})
 </p>
+{% if load_more_url %}
+<p>
+  <a href="{{ load_more_url }}">Load 50 more</a>
+  &nbsp;·&nbsp;
+  <a href="{{ show_all_url }}">Show all {{ total_messages }}</a>
+</p>
+{% endif %}
 {% else %}
 <p class="muted">No messages found{% if subject %} matching <em>"{{ subject }}"</em>{% endif %}.</p>
 {% endif %}

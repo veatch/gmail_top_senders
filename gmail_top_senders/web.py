@@ -9,6 +9,7 @@ from gmail_top_senders.report import _format_bytes, _format_date
 
 
 PAGE_SIZE = 20
+SENDER_PAGE_SIZE = 50
 
 
 def _toggle_param(args, key, value):
@@ -96,12 +97,24 @@ def create_app(db_path):
         show_deleted = request.args.get("show_deleted") == "1"
         subject = request.args.get("subject", "").strip() or None
 
-        rows = db.messages_by_sender(
+        try:
+            limit = int(request.args.get("limit", SENDER_PAGE_SIZE))
+            if limit < 1:
+                limit = SENDER_PAGE_SIZE
+        except (ValueError, TypeError):
+            limit = SENDER_PAGE_SIZE
+
+        all_rows = db.messages_by_sender(
             get_db(), sender, top_n=None,
             include_deleted=show_deleted, subject_filter=subject,
         )
-        total_size = sum(r[3] for r in rows)
+        total_messages = len(all_rows)
+        total_size = sum(r[3] for r in all_rows)
+        rows = all_rows[:limit]
+
         toggle_deleted = _toggle_param(request.args, "show_deleted", "1")
+        load_more_url = _set_param(request.args, "limit", limit + SENDER_PAGE_SIZE) if limit < total_messages else None
+        show_all_url = _set_param(request.args, "limit", total_messages) if limit < total_messages else None
 
         return render_template("sender.html",
             sender=sender,
@@ -109,7 +122,10 @@ def create_app(db_path):
             show_deleted=show_deleted,
             subject=subject or "",
             total_size=total_size,
+            total_messages=total_messages,
             toggle_deleted=toggle_deleted,
+            load_more_url=load_more_url,
+            show_all_url=show_all_url,
         )
 
     return app
