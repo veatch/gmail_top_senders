@@ -70,11 +70,16 @@
 </table>
 
 <p class="summary">
-  {{ rows | length }} sender{{ '' if rows | length == 1 else 's' }},
-  {{ total_msgs }} message{{ '' if total_msgs == 1 else 's' }},
-  {{ total_size | format_bytes }} total
-  {% if subject %} matching <em>"{{ subject }}"</em>{% endif %}
+  Showing {{ rows | length }} of {{ total_senders }} sender{{ '' if total_senders == 1 else 's' }}
+  ({{ total_msgs }} message{{ '' if total_msgs == 1 else 's' }}, {{ total_size | format_bytes }} total{% if subject %} matching <em>"{{ subject }}"</em>{% endif %})
 </p>
+{% if load_more_url %}
+<p>
+  <a href="{{ load_more_url }}">Load 20 more</a>
+  &nbsp;·&nbsp;
+  <a href="{{ show_all_url }}">Show all {{ total_senders }}</a>
+</p>
+{% endif %}
 {% else %}
 <p class="muted">No messages found{% if subject %} matching <em>"{{ subject }}"</em>{% endif %}. Run <code>sync</code> first if the database is empty.</p>
 {% endif %}

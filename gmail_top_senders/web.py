@@ -8,12 +8,22 @@ from gmail_top_senders import db
 from gmail_top_senders.report import _format_bytes, _format_date
 
 
+PAGE_SIZE = 20
+
+
 def _toggle_param(args, key, value):
     """Return a query string with ``key`` toggled to ``value``, or removed if already set."""
     d = {k: v for k, v in args.items() if k != key}
     if args.get(key) != value:
         d[key] = value
     return ("?" + urlencode(d)) if d else ""
+
+
+def _set_param(args, key, value):
+    """Return a query string with ``key`` set to ``value``, preserving all other params."""
+    d = dict(args)
+    d[key] = value
+    return "?" + urlencode(d)
 
 
 def create_app(db_path):
@@ -47,14 +57,25 @@ def create_app(db_path):
         show_deleted = request.args.get("show_deleted") == "1"
         subject = request.args.get("subject", "").strip() or None
 
-        rows = db.aggregate_by_sender(
+        try:
+            limit = int(request.args.get("limit", PAGE_SIZE))
+            if limit < 1:
+                limit = PAGE_SIZE
+        except (ValueError, TypeError):
+            limit = PAGE_SIZE
+
+        all_rows = db.aggregate_by_sender(
             get_db(), group_by, order_by,
             include_deleted=show_deleted, subject_filter=subject,
         )
-        total_msgs = sum(r[1] for r in rows)
-        total_size = sum(r[2] for r in rows)
+        total_senders = len(all_rows)
+        total_msgs = sum(r[1] for r in all_rows)
+        total_size = sum(r[2] for r in all_rows)
+        rows = all_rows[:limit]
 
         toggle_deleted = _toggle_param(request.args, "show_deleted", "1")
+        load_more_url = _set_param(request.args, "limit", limit + PAGE_SIZE) if limit < total_senders else None
+        show_all_url = _set_param(request.args, "limit", total_senders) if limit < total_senders else None
 
         return render_template("senders.html",
             rows=rows,
@@ -64,7 +85,10 @@ def create_app(db_path):
             subject=subject or "",
             total_msgs=total_msgs,
             total_size=total_size,
+            total_senders=total_senders,
             toggle_deleted=toggle_deleted,
+            load_more_url=load_more_url,
+            show_all_url=show_all_url,
         )
 
     @app.route("/sender/<path:sender>")
