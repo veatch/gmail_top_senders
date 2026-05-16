@@ -5,6 +5,7 @@ description = "Read-only Gmail metadata sync to SQLite and top-sender reports"
 readme = "README.md"
 requires-python = ">=3.7"
 dependencies = [
+    "flask>=2.2.5",
     "google-api-python-client==2.52.0",
     "google-auth-httplib2==0.2.0",
     "google-auth-oauthlib==0.5.3",

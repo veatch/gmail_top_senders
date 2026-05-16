@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Top Senders — Gmail Analytics{% endblock %}
+
+{% block content %}
+<h1>Top Senders</h1>
+
+<div class="controls">
+  <div>
+    Group by:
+    <a class="pill {% if group_by == 'address' %}pill-active{% else %}pill-inactive{% endif %}"
+       href="?{{ {'group_by': 'address', 'order_by': order_by, 'show_deleted': '1' if show_deleted else '', 'subject': subject} | selectattr('1') | list | map(attribute='0') | join('&') }}
+       ">address</a>
+    <a class="pill {% if group_by == 'display-name' %}pill-active{% else %}pill-inactive{% endif %}"
+       href="?group_by=display-name&order_by={{ order_by }}{% if show_deleted %}&show_deleted=1{% endif %}{% if subject %}&subject={{ subject | urlencode }}{% endif %}">display name</a>
+  </div>
+
+  <div>
+    Order by:
+    <select onchange="location.href=this.value">
+      <option value="?group_by={{ group_by }}&order_by=total-size{% if show_deleted %}&show_deleted=1{% endif %}{% if subject %}&subject={{ subject | urlencode }}{% endif %}"
+        {% if order_by == 'total-size' %}selected{% endif %}>total size</option>
+      <option value="?group_by={{ group_by }}&order_by=message-count{% if show_deleted %}&show_deleted=1{% endif %}{% if subject %}&subject={{ subject | urlencode }}{% endif %}"
+        {% if order_by == 'message-count' %}selected{% endif %}>message count</option>
+      <option value="?group_by={{ group_by }}&order_by=avg-size{% if show_deleted %}&show_deleted=1{% endif %}{% if subject %}&subject={{ subject | urlencode }}{% endif %}"
+        {% if order_by == 'avg-size' %}selected{% endif %}>avg size</option>
+      <option value="?group_by={{ group_by }}&order_by=sender{% if show_deleted %}&show_deleted=1{% endif %}{% if subject %}&subject={{ subject | urlencode }}{% endif %}"
+        {% if order_by == 'sender' %}selected{% endif %}>sender</option>
+    </select>
+  </div>
+
+  <form method="get">
+    <input type="hidden" name="group_by" value="{{ group_by }}">
+    <input type="hidden" name="order_by" value="{{ order_by }}">
+    {% if show_deleted %}<input type="hidden" name="show_deleted" value="1">{% endif %}
+    <input type="text" name="subject" value="{{ subject }}" placeholder="filter by subject…">
+    <button type="submit">Search</button>
+    {% if subject %}<a href="?group_by={{ group_by }}&order_by={{ order_by }}{% if show_deleted %}&show_deleted=1{% endif %}">✕ clear</a>{% endif %}
+  </form>
+
+  <a href="{{ toggle_deleted }}">{% if show_deleted %}hide deleted{% else %}show deleted{% endif %}</a>
+</div>
+
+{% if rows %}
+<table>
+  <thead>
+    <tr>
+      <th>sender</th>
+      <th class="num">messages</th>
+      <th class="num">total size</th>
+      <th class="num">avg size</th>
+      {% if rows | selectattr('4') | list %}
+      <th class="num">kept</th>
+      {% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for sender_key, cnt, total_sz, avg_sz, kept_count in rows %}
+    <tr>
+      <td><a href="/sender/{{ sender_key | urlencode }}?group_by={{ group_by }}">{{ sender_key }}</a></td>
+      <td class="num">{{ cnt }}</td>
+      <td class="num">{{ total_sz | format_bytes }}</td>
+      <td class="num">{{ avg_sz | format_bytes }}</td>
+      {% if rows | selectattr('4') | list %}
+      <td class="num">{% if kept_count %}<span class="tag-kept">{{ kept_count }}</span>{% endif %}</td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p class="summary">
+  {{ rows | length }} sender{{ '' if rows | length == 1 else 's' }},
+  {{ total_msgs }} message{{ '' if total_msgs == 1 else 's' }},
+  {{ total_size | format_bytes }} total
+  {% if subject %} matching <em>"{{ subject }}"</em>{% endif %}
+</p>
+{% else %}
+<p class="muted">No messages found{% if subject %} matching <em>"{{ subject }}"</em>{% endif %}. Run <code>sync</code> first if the database is empty.</p>
+{% endif %}
+{% endblock %}

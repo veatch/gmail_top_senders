@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Gmail Sender Analytics{% endblock %}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      font-size: 14px;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem;
+      color: #1a1a1a;
+      background: #fff;
+    }
+    a { color: #0060c0; }
+    a:visited { color: #0060c0; }
+    nav { margin-bottom: 1.25rem; color: #555; }
+    h1 { font-size: 1.25rem; margin: 0 0 1rem; }
+    table { border-collapse: collapse; width: 100%; }
+    th {
+      text-align: left;
+      padding: 0.3rem 0.75rem;
+      border-bottom: 2px solid #ccc;
+      white-space: nowrap;
+      color: #333;
+    }
+    td { padding: 0.25rem 0.75rem; }
+    tr:hover td { background: #f4f7fb; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .muted { color: #777; font-size: 0.9em; }
+    .tag-kept { color: #1a7a1a; font-size: 0.85em; }
+    .tag-deleted { color: #999; font-size: 0.85em; text-decoration: line-through; }
+    tr.deleted td { color: #aaa; text-decoration: line-through; }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .controls form { display: flex; gap: 0.4rem; align-items: center; }
+    .controls input[type=text] {
+      padding: 0.25rem 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      font-size: 13px;
+      width: 220px;
+    }
+    .controls button, .controls select {
+      padding: 0.25rem 0.5rem;
+      font-size: 13px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      background: #f5f5f5;
+      cursor: pointer;
+    }
+    .summary { margin-top: 0.75rem; color: #555; }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 3px;
+      font-size: 0.85em;
+    }
+    .pill-active { background: #e0ecff; color: #0050a0; }
+    .pill-inactive { background: #f0f0f0; color: #555; text-decoration: none; }
+  </style>
+</head>
+<body>
+  {% block nav %}{% endblock %}
+  {% block content %}{% endblock %}
+</body>
+</html>

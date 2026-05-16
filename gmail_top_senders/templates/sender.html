@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}{{ sender }} — Gmail Analytics{% endblock %}
+
+{% block nav %}
+<nav><a href="/">← All senders</a></nav>
+{% endblock %}
+
+{% block content %}
+<h1>{{ sender }}</h1>
+
+<div class="controls">
+  <form method="get">
+    {% if show_deleted %}<input type="hidden" name="show_deleted" value="1">{% endif %}
+    <input type="text" name="subject" value="{{ subject }}" placeholder="filter by subject…">
+    <button type="submit">Search</button>
+    {% if subject %}<a href="/sender/{{ sender | urlencode }}{% if show_deleted %}?show_deleted=1{% endif %}">✕ clear</a>{% endif %}
+  </form>
+
+  <a href="{{ toggle_deleted }}">{% if show_deleted %}hide deleted{% else %}show deleted{% endif %}</a>
+</div>
+
+{% if rows %}
+<table>
+  <thead>
+    <tr>
+      <th>subject</th>
+      <th>date</th>
+      <th class="num">size</th>
+      {% if rows | selectattr('8') | list or (show_deleted and rows | selectattr('7') | list) %}
+      <th>status</th>
+      {% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% set show_status = rows | selectattr('8') | list or (show_deleted and rows | selectattr('7') | list) %}
+    {% for message_id, thread_id, subject_text, size, internal_date, addr, display, deleted_at, kept_at in rows %}
+    <tr{% if deleted_at %} class="deleted"{% endif %}>
+      <td>
+        {% if thread_id %}
+          <a href="https://mail.google.com/mail/u/0/#all/{{ thread_id }}" target="_blank" rel="noopener">{{ subject_text or '(no subject)' }}</a>
+        {% else %}
+          {{ subject_text or '(no subject)' }}
+        {% endif %}
+      </td>
+      <td class="muted">{{ internal_date | format_date }}</td>
+      <td class="num">{{ size | format_bytes }}</td>
+      {% if show_status %}
+      <td>
+        {% if deleted_at %}<span class="tag-deleted">deleted</span>
+        {% elif kept_at %}<span class="tag-kept">kept</span>
+        {% endif %}
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p class="summary">
+  {{ rows | length }} message{{ '' if rows | length == 1 else 's' }},
+  {{ total_size | format_bytes }} total
+  {% if subject %} matching <em>"{{ subject }}"</em>{% endif %}
+</p>
+{% else %}
+<p class="muted">No messages found{% if subject %} matching <em>"{{ subject }}"</em>{% endif %}.</p>
+{% endif %}
+{% endblock %}

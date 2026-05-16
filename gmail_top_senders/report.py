@@ -64,7 +64,7 @@ def write_report(
         w = csv.writer(out)
         if sender:
             w.writerow(["subject", "date", "size_bytes", "status"])
-            for _, subject, size, internal_date, _, _, deleted_at, kept_at in rows:
+            for _, _tid, subject, size, internal_date, _, _, deleted_at, kept_at in rows:
                 status = "deleted" if deleted_at else ("kept" if kept_at else "")
                 w.writerow([subject, _format_date(internal_date), size, status])
         else:
@@ -81,7 +81,7 @@ def write_report(
         hdr_status = "status"
 
         lines = []  # type: List[Tuple[str, str, str, str]]
-        for _, subject, size, internal_date, _, _, deleted_at, kept_at in rows:
+        for _, _tid, subject, size, internal_date, _, _, deleted_at, kept_at in rows:
             status = "[deleted]" if deleted_at else ("[kept]" if kept_at else "")
             lines.append((subject or "", _format_date(internal_date), _format_bytes(size), status))
 
@@ -105,7 +105,7 @@ def write_report(
                 out.write(fmt % (line[0], line[1], line[2]))
 
         if subject_filter:
-            total_size = sum(r[2] for r in rows)
+            total_size = sum(r[3] for r in rows)
             out.write("─── %d message%s, %s total\n" % (
                 len(rows), "" if len(rows) == 1 else "s", _format_bytes(total_size)
             ))

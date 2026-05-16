@@ -120,6 +120,13 @@ def main(argv=None):
         help="Filter to messages whose subject contains TEXT (case-insensitive)",
     )
 
+    p_serve = sub.add_parser(
+        "serve", help="Start a local web interface (no API calls needed)"
+    )
+    p_serve.add_argument("--db", default=db.DEFAULT_DB_FILENAME)
+    p_serve.add_argument("--port", type=int, default=5000, help="Port to listen on (default: 5000)")
+    p_serve.add_argument("--host", default="127.0.0.1", help="Host to bind to (default: 127.0.0.1)")
+
     args = parser.parse_args(argv)
 
     if args.command == "sync":
@@ -165,6 +172,11 @@ def main(argv=None):
             )
         finally:
             conn.close()
+    elif args.command == "serve":
+        from gmail_top_senders.web import create_app
+        app = create_app(args.db)
+        print("Starting server at http://%s:%s" % (args.host, args.port))
+        app.run(host=args.host, port=args.port)
     else:
         parser.print_help()
         sys.exit(1)

@@ -163,7 +163,7 @@ def messages_by_sender(
     """Return rows of individual messages matching a sender string.
 
     Rows are ordered by size descending.
-    Each row: (message_id, subject, size_estimate, internal_date,
+    Each row: (message_id, thread_id, subject, size_estimate, internal_date,
                from_address_normalized, from_display_name, deleted_at, kept_at).
     Excludes deleted messages unless ``include_deleted`` is True.
     """
@@ -183,6 +183,7 @@ def messages_by_sender(
     sql = """
         SELECT
             message_id,
+            thread_id,
             subject,
             COALESCE(size_estimate, 0) AS size_estimate,
             internal_date,
@@ -207,6 +208,7 @@ def messages_by_sender(
         rows.append(
             (
                 r["message_id"],
+                r["thread_id"],
                 r["subject"],
                 int(r["size_estimate"]),
                 int(r["internal_date"]) if r["internal_date"] is not None else None,
