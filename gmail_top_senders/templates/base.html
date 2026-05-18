@@ -4,7 +4,87 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Gmail Sender Analytics{% endblock %}</title>
+  <script>
+    (function() {
+      var t = localStorage.getItem('theme');
+      if (t) document.documentElement.dataset.theme = t;
+    })();
+  </script>
   <style>
+    :root {
+      --bg:          #ffffff;
+      --bg-hover:    #f4f7fb;
+      --text:        #1a1a1a;
+      --text-muted:  #666;
+      --text-header: #333;
+      --border:      #ccc;
+      --link:        #0060c0;
+      --input-bg:    #ffffff;
+      --btn-bg:      #f5f5f5;
+      --pill-active-bg:   #e0ecff;
+      --pill-active-text: #0050a0;
+      --pill-inactive-bg:   #f0f0f0;
+      --pill-inactive-text: #555;
+      --tag-kept:    #1a7a1a;
+      --tag-deleted: #999;
+      --row-deleted: #aaa;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:          #1c1c1e;
+        --bg-hover:    #2c2c2e;
+        --text:        #e0e0e0;
+        --text-muted:  #888;
+        --text-header: #aaa;
+        --border:      #444;
+        --link:        #5da8ff;
+        --input-bg:    #2c2c2e;
+        --btn-bg:      #3a3a3c;
+        --pill-active-bg:   #1a3a5c;
+        --pill-active-text: #7db8ff;
+        --pill-inactive-bg:   #3a3a3c;
+        --pill-inactive-text: #aaa;
+        --tag-kept:    #4caf50;
+        --tag-deleted: #666;
+        --row-deleted: #555;
+      }
+    }
+    html[data-theme="light"] {
+      --bg:          #ffffff;
+      --bg-hover:    #f4f7fb;
+      --text:        #1a1a1a;
+      --text-muted:  #666;
+      --text-header: #333;
+      --border:      #ccc;
+      --link:        #0060c0;
+      --input-bg:    #ffffff;
+      --btn-bg:      #f5f5f5;
+      --pill-active-bg:   #e0ecff;
+      --pill-active-text: #0050a0;
+      --pill-inactive-bg:   #f0f0f0;
+      --pill-inactive-text: #555;
+      --tag-kept:    #1a7a1a;
+      --tag-deleted: #999;
+      --row-deleted: #aaa;
+    }
+    html[data-theme="dark"] {
+      --bg:          #1c1c1e;
+      --bg-hover:    #2c2c2e;
+      --text:        #e0e0e0;
+      --text-muted:  #888;
+      --text-header: #aaa;
+      --border:      #444;
+      --link:        #5da8ff;
+      --input-bg:    #2c2c2e;
+      --btn-bg:      #3a3a3c;
+      --pill-active-bg:   #1a3a5c;
+      --pill-active-text: #7db8ff;
+      --pill-inactive-bg:   #3a3a3c;
+      --pill-inactive-text: #aaa;
+      --tag-kept:    #4caf50;
+      --tag-deleted: #666;
+      --row-deleted: #555;
+    }
     *, *::before, *::after { box-sizing: border-box; }
     body {
       font-family: system-ui, sans-serif;
@@ -12,28 +92,28 @@
       max-width: 1100px;
       margin: 0 auto;
       padding: 1.5rem 1rem;
-      color: #1a1a1a;
-      background: #fff;
+      color: var(--text);
+      background: var(--bg);
     }
-    a { color: #0060c0; }
-    a:visited { color: #0060c0; }
-    nav { margin-bottom: 1.25rem; color: #555; }
+    a { color: var(--link); }
+    a:visited { color: var(--link); }
+    nav { margin-bottom: 1.25rem; color: var(--text-muted); }
     h1 { font-size: 1.25rem; margin: 0 0 1rem; }
     table { border-collapse: collapse; width: 100%; }
     th {
       text-align: left;
       padding: 0.3rem 0.75rem;
-      border-bottom: 2px solid #ccc;
+      border-bottom: 2px solid var(--border);
       white-space: nowrap;
-      color: #333;
+      color: var(--text-header);
     }
     td { padding: 0.25rem 0.75rem; }
-    tr:hover td { background: #f4f7fb; }
+    tr:hover td { background: var(--bg-hover); }
     .num { text-align: right; font-variant-numeric: tabular-nums; }
-    .muted { color: #777; font-size: 0.9em; }
-    .tag-kept { color: #1a7a1a; font-size: 0.85em; }
-    .tag-deleted { color: #999; font-size: 0.85em; text-decoration: line-through; }
-    tr.deleted td { color: #aaa; text-decoration: line-through; }
+    .muted { color: var(--text-muted); font-size: 0.9em; }
+    .tag-kept { color: var(--tag-kept); font-size: 0.85em; }
+    .tag-deleted { color: var(--tag-deleted); font-size: 0.85em; text-decoration: line-through; }
+    tr.deleted td { color: var(--row-deleted); text-decoration: line-through; }
     .controls {
       display: flex;
       flex-wrap: wrap;
@@ -44,32 +124,69 @@
     .controls form { display: flex; gap: 0.4rem; align-items: center; }
     .controls input[type=text] {
       padding: 0.25rem 0.5rem;
-      border: 1px solid #ccc;
+      border: 1px solid var(--border);
       border-radius: 3px;
       font-size: 13px;
       width: 220px;
+      background: var(--input-bg);
+      color: var(--text);
     }
     .controls button, .controls select {
       padding: 0.25rem 0.5rem;
       font-size: 13px;
-      border: 1px solid #ccc;
+      border: 1px solid var(--border);
       border-radius: 3px;
-      background: #f5f5f5;
+      background: var(--btn-bg);
+      color: var(--text);
       cursor: pointer;
     }
-    .summary { margin-top: 0.75rem; color: #555; }
+    .summary { margin-top: 0.75rem; color: var(--text-muted); }
     .pill {
       display: inline-block;
       padding: 0.15rem 0.5rem;
       border-radius: 3px;
       font-size: 0.85em;
     }
-    .pill-active { background: #e0ecff; color: #0050a0; }
-    .pill-inactive { background: #f0f0f0; color: #555; text-decoration: none; }
+    .pill-active { background: var(--pill-active-bg); color: var(--pill-active-text); }
+    .pill-inactive { background: var(--pill-inactive-bg); color: var(--pill-inactive-text); text-decoration: none; }
+    #theme-toggle {
+      position: fixed;
+      top: 0.75rem;
+      right: 1rem;
+      padding: 0.2rem 0.6rem;
+      font-size: 12px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      background: var(--btn-bg);
+      color: var(--text-muted);
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
+  <button id="theme-toggle" onclick="toggleTheme()"></button>
   {% block nav %}{% endblock %}
   {% block content %}{% endblock %}
+  <script>
+    var btn = document.getElementById('theme-toggle');
+
+    function currentTheme() {
+      return document.documentElement.dataset.theme ||
+        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    }
+
+    function applyLabel() {
+      btn.textContent = currentTheme() === 'dark' ? 'Light mode' : 'Dark mode';
+    }
+
+    function toggleTheme() {
+      var next = currentTheme() === 'dark' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = next;
+      localStorage.setItem('theme', next);
+      applyLabel();
+    }
+
+    applyLabel();
+  </script>
 </body>
 </html>
