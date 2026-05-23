@@ -246,6 +246,28 @@ def ids_present(conn: sqlite3.Connection, ids: List[str]) -> set:
     return present
 
 
+def mark_deleted(conn: sqlite3.Connection, message_id: str) -> None:
+    conn.execute(
+        "UPDATE messages SET deleted_at = datetime('now') WHERE message_id = ?",
+        (message_id,),
+    )
+    conn.commit()
+
+
+def mark_kept(conn: sqlite3.Connection, message_id: str, kept: bool) -> None:
+    if kept:
+        conn.execute(
+            "UPDATE messages SET kept_at = datetime('now') WHERE message_id = ?",
+            (message_id,),
+        )
+    else:
+        conn.execute(
+            "UPDATE messages SET kept_at = NULL WHERE message_id = ?",
+            (message_id,),
+        )
+    conn.commit()
+
+
 def get_sync_meta(conn: sqlite3.Connection, key: str) -> Optional[str]:
     row = conn.execute(
         "SELECT value FROM sync_meta WHERE key = ?", (key,)

@@ -128,4 +128,15 @@ def create_app(db_path):
             show_all_url=show_all_url,
         )
 
+    @app.route("/message/<message_id>/mark-deleted", methods=["POST"])
+    def mark_message_as_deleted(message_id):
+        db.mark_deleted(get_db(), message_id)
+        return "", 204
+
+    @app.route("/message/<message_id>/keep", methods=["POST"])
+    def keep_message(message_id):
+        kept = (request.get_json(silent=True) or {}).get("kept", True)
+        db.mark_kept(get_db(), message_id, bool(kept))
+        return "", 204
+
     return app
