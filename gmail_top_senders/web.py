@@ -48,6 +48,38 @@ def create_app(db_path):
             conn.close()
 
     @app.route("/")
+    def messages():
+        show_deleted = request.args.get("show_deleted") == "1"
+        subject = request.args.get("subject", "").strip() or None
+
+        try:
+            limit = int(request.args.get("limit", PAGE_SIZE))
+            if limit < 1:
+                limit = PAGE_SIZE
+        except (ValueError, TypeError):
+            limit = PAGE_SIZE
+
+        all_rows = db.all_messages(get_db(), include_deleted=show_deleted, subject_filter=subject)
+        total_messages = len(all_rows)
+        total_size = sum(r[3] for r in all_rows)
+        rows = all_rows[:limit]
+
+        toggle_deleted = _toggle_param(request.args, "show_deleted", "1")
+        load_more_url = _set_param(request.args, "limit", limit + PAGE_SIZE) if limit < total_messages else None
+        show_all_url = _set_param(request.args, "limit", total_messages) if limit < total_messages else None
+
+        return render_template("messages.html",
+            rows=rows,
+            show_deleted=show_deleted,
+            subject=subject or "",
+            total_messages=total_messages,
+            total_size=total_size,
+            toggle_deleted=toggle_deleted,
+            load_more_url=load_more_url,
+            show_all_url=show_all_url,
+        )
+
+    @app.route("/senders")
     def senders():
         group_by = request.args.get("group_by", "address")
         if group_by not in ("address", "display-name"):

@@ -246,6 +246,58 @@ def ids_present(conn: sqlite3.Connection, ids: List[str]) -> set:
     return present
 
 
+def all_messages(
+    conn: sqlite3.Connection,
+    include_deleted: bool = False,
+    subject_filter: Optional[str] = None,
+) -> List[Tuple[str, Optional[str], str, int, Optional[int], str, str, Optional[str], Optional[str]]]:
+    """Return all messages ordered by size descending.
+
+    Each row: (message_id, thread_id, subject, size_estimate, internal_date,
+               from_address_normalized, from_display_name, deleted_at, kept_at).
+    """
+    conditions = []
+    params: List = []
+    if not include_deleted:
+        conditions.append("deleted_at IS NULL")
+    if subject_filter:
+        conditions.append("LOWER(COALESCE(subject, '')) LIKE '%' || LOWER(?) || '%'")
+        params.append(subject_filter)
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+
+    sql = """
+        SELECT
+            message_id,
+            thread_id,
+            subject,
+            COALESCE(size_estimate, 0) AS size_estimate,
+            internal_date,
+            COALESCE(from_address_normalized, '') AS from_address_normalized,
+            COALESCE(from_display_name, '') AS from_display_name,
+            deleted_at,
+            kept_at
+        FROM messages
+        %s
+        ORDER BY size_estimate DESC
+    """ % where
+
+    cur = conn.execute(sql, params)
+    rows = []
+    for r in cur.fetchall():
+        rows.append((
+            r["message_id"],
+            r["thread_id"],
+            r["subject"],
+            int(r["size_estimate"]),
+            int(r["internal_date"]) if r["internal_date"] is not None else None,
+            r["from_address_normalized"],
+            r["from_display_name"],
+            r["deleted_at"],
+            r["kept_at"],
+        ))
+    return rows
+
+
 def mark_deleted(conn: sqlite3.Connection, message_id: str) -> None:
     conn.execute(
         "UPDATE messages SET deleted_at = datetime('now') WHERE message_id = ?",

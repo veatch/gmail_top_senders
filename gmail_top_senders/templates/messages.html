@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block title %}Largest Messages — Gmail Analytics{% endblock %}
+
+{% block nav %}
+<nav><a href="/senders">Top senders →</a></nav>
+{% endblock %}
+
+{% block content %}
+<h1>Largest Messages</h1>
+
+<div class="controls">
+  <form method="get">
+    {% if show_deleted %}<input type="hidden" name="show_deleted" value="1">{% endif %}
+    <input type="text" name="subject" value="{{ subject }}" placeholder="filter by subject…">
+    <button type="submit">Search</button>
+    {% if subject %}<a href="/{% if show_deleted %}?show_deleted=1{% endif %}">✕ clear</a>{% endif %}
+  </form>
+</div>
+
+<div id="bulk-bar" class="bulk-bar">
+  <span id="bulk-count">No messages selected</span>
+  <a href="#" id="bulk-review" class="bulk-action disabled">Mark as reviewed</a>
+  <a href="#" id="bulk-unreview" class="bulk-action disabled">Un-review</a>
+  <a href="#" id="bulk-delete" class="bulk-action disabled">Delete</a>
+</div>
+
+{% if rows %}
+<table>
+  <thead>
+    <tr>
+      <th class="cb-col"><input type="checkbox" id="check-all" title="Select all visible"></th>
+      <th>subject</th>
+      <th>from</th>
+      <th>date</th>
+      <th class="num">size</th>
+      <th>status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for message_id, thread_id, subject_text, size, internal_date, addr, display, deleted_at, kept_at in rows %}
+    <tr id="row-{{ message_id }}"{% if deleted_at %} class="deleted"{% elif kept_at %} class="reviewed"{% endif %}>
+      <td class="cb-col">
+        {% if not deleted_at %}
+        <input type="checkbox" class="row-cb" data-id="{{ message_id }}" data-kept="{{ 'true' if kept_at else 'false' }}">
+        {% endif %}
+      </td>
+      <td>
+        {% if thread_id %}
+          <a href="https://mail.google.com/mail/u/0/#all/{{ thread_id }}" target="_blank" rel="noopener" title="{{ subject_text }}">{{ (subject_text or '(no subject)') | truncate(70, killwords=False, end='…') }}</a>
+        {% else %}
+          <span title="{{ subject_text }}">{{ (subject_text or '(no subject)') | truncate(70, killwords=False, end='…') }}</span>
+        {% endif %}
+      </td>
+      <td class="muted">
+        <a href="/sender/{{ (display or addr) | urlencode }}" title="{{ addr }}">{{ (display or addr) | truncate(30, killwords=False, end='…') }}</a>
+      </td>
+      <td class="muted">{{ internal_date | format_date }}</td>
+      <td class="num">{{ size | format_bytes }}</td>
+      <td>
+        {% if deleted_at %}<span class="tag-deleted">deleted</span>
+        {% elif kept_at %}<span class="tag-kept">reviewed</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p class="summary">
+  Showing <span id="visible-count">{{ rows | length }}</span> of {{ total_messages }} message{{ '' if total_messages == 1 else 's' }}
+  ({{ total_size | format_bytes }} total{% if subject %} matching <em>"{{ subject }}"</em>{% endif %})
+</p>
+{% if load_more_url %}
+<p>
+  <a href="{{ load_more_url }}">Load 20 more</a>
+  &nbsp;·&nbsp;
+  <a href="{{ show_all_url }}">Show all {{ total_messages }}</a>
+</p>
+{% endif %}
+{% else %}
+<p class="muted">No messages found{% if subject %} matching <em>"{{ subject }}"</em>{% endif %}.</p>
+{% endif %}
+
+{% if not show_deleted %}
+<p><a href="{{ toggle_deleted }}">Review deleted messages</a></p>
+{% else %}
+<p><a href="{{ toggle_deleted }}">Hide deleted messages</a></p>
+{% endif %}
+
+<style>
+  .cb-col { width: 1%; padding-left: 0.25rem; padding-right: 0; }
+  tr.reviewed td { font-style: italic; }
+  .bulk-bar {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 0.4rem 0.75rem;
+    margin-bottom: 0.75rem;
+    background: var(--pill-active-bg);
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  .bulk-bar span { color: var(--text-muted); }
+  .bulk-action { text-decoration: none; }
+  .bulk-action:hover:not(.disabled) { text-decoration: underline; }
+  .bulk-action.disabled { color: var(--text-muted); opacity: 0.45; pointer-events: none; }
+  #bulk-delete:not(.disabled) { color: #c00; }
+  html[data-theme="dark"] #bulk-delete:not(.disabled) { color: #f77; }
+  @media (prefers-color-scheme: dark) { #bulk-delete:not(.disabled) { color: #f77; } }
+</style>
+
+<script>
+  var bulkCount = document.getElementById('bulk-count');
+  var checkAll = document.getElementById('check-all');
+
+  function checkedBoxes() {
+    return Array.from(document.querySelectorAll('.row-cb:checked'));
+  }
+
+  function updateBulkBar() {
+    var checked = checkedBoxes();
+    var hasSelection = checked.length > 0;
+    bulkCount.textContent = hasSelection ? checked.length + ' selected' : 'No messages selected';
+    document.querySelectorAll('.bulk-action').forEach(function(a) {
+      a.classList.toggle('disabled', !hasSelection);
+    });
+    if (checkAll) {
+      var all = document.querySelectorAll('.row-cb');
+      checkAll.indeterminate = checked.length > 0 && checked.length < all.length;
+      checkAll.checked = all.length > 0 && checked.length === all.length;
+    }
+  }
+
+  function updateVisibleCount() {
+    var visible = document.querySelectorAll('tbody tr:not([style*="display: none"])').length;
+    var el = document.getElementById('visible-count');
+    if (el) el.textContent = visible;
+  }
+
+  document.querySelectorAll('.row-cb').forEach(function(cb) {
+    cb.addEventListener('change', updateBulkBar);
+  });
+
+  if (checkAll) {
+    checkAll.addEventListener('change', function() {
+      document.querySelectorAll('.row-cb').forEach(function(cb) {
+        cb.checked = checkAll.checked;
+      });
+      updateBulkBar();
+    });
+  }
+
+  function postAll(ids, url, body) {
+    return Promise.all(ids.map(function(id) {
+      return fetch(url.replace(/__ID__/g, id), {
+        method: 'POST',
+        headers: body ? { 'Content-Type': 'application/json' } : {},
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    }));
+  }
+
+  document.getElementById('bulk-review').addEventListener('click', function(e) {
+    e.preventDefault();
+    var boxes = checkedBoxes();
+    var ids = boxes.map(function(cb) { return cb.dataset.id; });
+    postAll(ids, '/message/__ID__/keep', { kept: true }).then(function() {
+      boxes.forEach(function(cb) {
+        cb.dataset.kept = 'true';
+        cb.checked = false;
+        var row = document.getElementById('row-' + cb.dataset.id);
+        if (row) {
+          row.classList.add('reviewed');
+          var statusTd = row.querySelector('td:last-child');
+          if (statusTd) statusTd.innerHTML = '<span class="tag-kept">reviewed</span>';
+        }
+      });
+      updateBulkBar();
+    });
+  });
+
+  document.getElementById('bulk-unreview').addEventListener('click', function(e) {
+    e.preventDefault();
+    var boxes = checkedBoxes();
+    var ids = boxes.map(function(cb) { return cb.dataset.id; });
+    postAll(ids, '/message/__ID__/keep', { kept: false }).then(function() {
+      boxes.forEach(function(cb) {
+        cb.dataset.kept = 'false';
+        cb.checked = false;
+        var row = document.getElementById('row-' + cb.dataset.id);
+        if (row) {
+          row.classList.remove('reviewed');
+          var statusTd = row.querySelector('td:last-child');
+          if (statusTd) statusTd.innerHTML = '';
+        }
+      });
+      updateBulkBar();
+    });
+  });
+
+  document.getElementById('bulk-delete').addEventListener('click', function(e) {
+    e.preventDefault();
+    var boxes = checkedBoxes();
+    var ids = boxes.map(function(cb) { return cb.dataset.id; });
+    postAll(ids, '/message/__ID__/mark-deleted', null).then(function() {
+      boxes.forEach(function(cb) {
+        cb.checked = false;
+        var row = document.getElementById('row-' + cb.dataset.id);
+        if (row) row.style.display = 'none';
+      });
+      updateBulkBar();
+      updateVisibleCount();
+    });
+  });
+</script>
+{% endblock %}
