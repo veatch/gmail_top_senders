@@ -86,14 +86,17 @@ def aggregate_by_sender(
     order_by: str,
     include_deleted: bool = False,
     subject_filter: Optional[str] = None,
-) -> List[Tuple[str, int, int, Optional[int], int]]:
-    """Return rows: (sender_key, message_count, total_size, avg_size, kept_count).
+) -> List[Tuple[str, int, int, Optional[int], int, int]]:
+    """Return rows: (sender_key, message_count, total_size, avg_size, kept_count, remaining_size).
 
+    ``remaining_size`` is total size of messages not yet marked as reviewed.
     ``sender_key`` is normalized address or display label for ``group_by``.
     Excludes deleted messages unless ``include_deleted`` is True.
     """
     order_by_clause = ""
-    if order_by == "total-size":
+    if order_by == "remaining-size":
+        order_by_clause = "ORDER BY remaining_size DESC"
+    elif order_by == "total-size":
         order_by_clause = "ORDER BY total_size DESC"
     elif order_by == "sender":
         order_by_clause = "ORDER BY sender_key"
@@ -111,6 +114,8 @@ def aggregate_by_sender(
         params.append(subject_filter)
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 
+    remaining_expr = "COALESCE(SUM(CASE WHEN kept_at IS NULL THEN size_estimate ELSE 0 END), 0)"
+
     if group_by == "address":
         sql = """
             SELECT
@@ -121,12 +126,13 @@ def aggregate_by_sender(
                 COALESCE(SUM(size_estimate), 0) AS total_size,
                 COUNT(*) AS cnt,
                 CAST(ROUND(COALESCE(AVG(size_estimate), 0)) AS INTEGER) AS avg_size,
-                SUM(CASE WHEN kept_at IS NOT NULL THEN 1 ELSE 0 END) AS kept_count
+                SUM(CASE WHEN kept_at IS NOT NULL THEN 1 ELSE 0 END) AS kept_count,
+                %s AS remaining_size
             FROM messages
             %s
             GROUP BY 1
             %s
-        """ % (where, order_by_clause)
+        """ % (remaining_expr, where, order_by_clause)
     elif group_by == "display-name":
         sql = """
             SELECT
@@ -137,19 +143,20 @@ def aggregate_by_sender(
                 COUNT(*) AS cnt,
                 COALESCE(SUM(size_estimate), 0) AS total_size,
                 CAST(ROUND(COALESCE(AVG(size_estimate), 0)) AS INTEGER) AS avg_size,
-                SUM(CASE WHEN kept_at IS NOT NULL THEN 1 ELSE 0 END) AS kept_count
+                SUM(CASE WHEN kept_at IS NOT NULL THEN 1 ELSE 0 END) AS kept_count,
+                %s AS remaining_size
             FROM messages
             %s
             GROUP BY 1
             %s
-        """ % (where, order_by_clause)
+        """ % (remaining_expr, where, order_by_clause)
     else:
         raise ValueError("group_by must be 'address' or 'display-name'")
 
     cur = conn.execute(sql, params)
     rows = []
     for r in cur.fetchall():
-        rows.append((r["sender_key"], int(r["cnt"]), int(r["total_size"]), r["avg_size"], int(r["kept_count"])))
+        rows.append((r["sender_key"], int(r["cnt"]), int(r["total_size"]), r["avg_size"], int(r["kept_count"]), int(r["remaining_size"])))
     return rows
 
 

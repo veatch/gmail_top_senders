@@ -22,6 +22,8 @@
   <div>
     Order by:
     <select onchange="location.href=this.value">
+      <option value="?group_by={{ group_by }}&order_by=remaining-size{% if show_deleted %}&show_deleted=1{% endif %}{% if subject %}&subject={{ subject | urlencode }}{% endif %}"
+        {% if order_by == 'remaining-size' %}selected{% endif %}>remaining</option>
       <option value="?group_by={{ group_by }}&order_by=total-size{% if show_deleted %}&show_deleted=1{% endif %}{% if subject %}&subject={{ subject | urlencode }}{% endif %}"
         {% if order_by == 'total-size' %}selected{% endif %}>total size</option>
       <option value="?group_by={{ group_by }}&order_by=message-count{% if show_deleted %}&show_deleted=1{% endif %}{% if subject %}&subject={{ subject | urlencode }}{% endif %}"
@@ -50,24 +52,20 @@
   <thead>
     <tr>
       <th>sender</th>
+      <th class="num">remaining</th>
       <th class="num">messages</th>
       <th class="num">total size</th>
       <th class="num">avg size</th>
-      {% if rows | selectattr('4') | list %}
-      <th class="num">kept</th>
-      {% endif %}
     </tr>
   </thead>
   <tbody>
-    {% for sender_key, cnt, total_sz, avg_sz, kept_count in rows %}
+    {% for sender_key, cnt, total_sz, avg_sz, kept_count, remaining_sz in rows %}
     <tr>
       <td><a href="/sender/{{ sender_key | urlencode }}?group_by={{ group_by }}">{{ sender_key }}</a></td>
+      <td class="num">{{ remaining_sz | format_bytes }}</td>
       <td class="num">{{ cnt }}</td>
       <td class="num">{{ total_sz | format_bytes }}</td>
       <td class="num">{{ avg_sz | format_bytes }}</td>
-      {% if rows | selectattr('4') | list %}
-      <td class="num">{% if kept_count %}<span class="tag-kept">{{ kept_count }}</span>{% endif %}</td>
-      {% endif %}
     </tr>
     {% endfor %}
   </tbody>

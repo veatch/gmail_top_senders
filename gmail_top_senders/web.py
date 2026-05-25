@@ -84,9 +84,9 @@ def create_app(db_path):
         group_by = request.args.get("group_by", "address")
         if group_by not in ("address", "display-name"):
             group_by = "address"
-        order_by = request.args.get("order_by", "total-size")
-        if order_by not in ("total-size", "sender", "message-count", "avg-size"):
-            order_by = "total-size"
+        order_by = request.args.get("order_by", "remaining-size")
+        if order_by not in ("remaining-size", "total-size", "sender", "message-count", "avg-size"):
+            order_by = "remaining-size"
         show_deleted = request.args.get("show_deleted") == "1"
         subject = request.args.get("subject", "").strip() or None
 
