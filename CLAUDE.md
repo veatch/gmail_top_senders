@@ -9,14 +9,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 uv sync
 
 # Run sync (requires credentials.json)
-uv run gmail-top-senders sync --db gmail_metadata.sqlite
-uv run gmail-top-senders sync --db gmail_metadata.sqlite --incremental -v
+uv run mail-room sync --db gmail_metadata.sqlite
+uv run mail-room sync --db gmail_metadata.sqlite --incremental -v
+
+# Run web interface (no API calls needed)
+uv run mail-room serve --db gmail_metadata.sqlite
+# then open http://127.0.0.1:5000
 
 # Run report (no API calls needed)
-uv run gmail-top-senders report --db gmail_metadata.sqlite
-uv run gmail-top-senders report --db gmail_metadata.sqlite --group-by display-name --top 30
-uv run gmail-top-senders report --db gmail_metadata.sqlite --sender alice@example.com
-uv run gmail-top-senders report --db gmail_metadata.sqlite --csv > top.csv
+uv run mail-room report --db gmail_metadata.sqlite
+uv run mail-room report --db gmail_metadata.sqlite --group-by display-name --top 30
+uv run mail-room report --db gmail_metadata.sqlite --sender alice@example.com
+uv run mail-room report --db gmail_metadata.sqlite --csv > top.csv
 ```
 
 There are no tests or linting configured in this project.

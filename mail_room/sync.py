@@ -7,9 +7,9 @@ from typing import Any, Dict, List, Optional
 
 from googleapiclient.errors import HttpError
 
-from gmail_top_senders import db
-from gmail_top_senders.api import execute_with_retry
-from gmail_top_senders.parsing import parse_from_header
+from mail_room import db
+from mail_room.api import execute_with_retry
+from mail_room.parsing import parse_from_header
 
 DEFAULT_QUERY = "in:anywhere -in:spam -in:trash"
 LIST_PAGE_SIZE = 500
@@ -66,6 +66,7 @@ def _message_to_row(
     if internal_date is not None:
         internal_date = int(internal_date)
     headers = message.get('payload', {}).get('headers')
+    # move this to _extract_from_header step below
     subject = next((h['value'] for h in headers if h['name'] == 'Subject'), None) or ""
     size_est = message.get("sizeEstimate")
     if size_est is not None:
@@ -85,6 +86,7 @@ def _message_to_row(
     )
 
 
+# is 50 ideal batch size?
 def _fetch_batch(
     service,  # type: Any
     message_ids,  # type: List[str]
@@ -122,6 +124,7 @@ def _fetch_batch(
     for mid in message_ids:
         if mid not in results:
             try:
+                # how often do we get a single message like this?
                 req = service.users().messages().get(
                     userId="me",
                     id=mid,

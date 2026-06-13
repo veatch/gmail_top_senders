@@ -6,10 +6,10 @@ import argparse
 import sys
 from typing import List, Optional
 
-from gmail_top_senders import db
-from gmail_top_senders.api import build_gmail_service, load_credentials
-from gmail_top_senders.report import write_report
-from gmail_top_senders.sync import DEFAULT_QUERY, run_sync
+from mail_room import db
+from mail_room.api import build_gmail_service, load_credentials
+from mail_room.report import write_report
+from mail_room.sync import DEFAULT_QUERY, run_sync
 
 
 def main(argv=None):
@@ -18,7 +18,7 @@ def main(argv=None):
         argv = sys.argv[1:]
 
     parser = argparse.ArgumentParser(
-        description="Gmail sender analytics (read-only): sync metadata to SQLite, then report top senders.",
+        description="Mail Room: download Gmail inbox metadata and find messages and senders taking up the most room.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -173,7 +173,7 @@ def main(argv=None):
         finally:
             conn.close()
     elif args.command == "serve":
-        from gmail_top_senders.web import create_app
+        from mail_room.web import create_app
         app = create_app(args.db)
         print("Starting server at http://%s:%s" % (args.host, args.port))
         app.run(host=args.host, port=args.port)

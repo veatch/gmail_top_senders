@@ -4,6 +4,7 @@ token.json
 *.sqlite
 venv/
 .venv/
+.claude/settings.local.json
 __pycache__/
 *.pyc
 .Python

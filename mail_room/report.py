@@ -5,7 +5,7 @@ import datetime
 import sqlite3
 from typing import List, Optional, TextIO, Tuple
 
-from gmail_top_senders import db
+from mail_room import db
 
 
 def _format_bytes(num):

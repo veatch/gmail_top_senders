@@ -1,6 +1,6 @@
-# Gmail sender analytics (read-only)
+# Mail Room
 
-Small local tool: pull **metadata only** (From header + `sizeEstimate`) from Gmail via the API, store rows in **SQLite**, and print **who sends you the most mail**—by SMTP address or by **From display name** (useful for marketing mail that rotates addresses).
+Small, read-only tool to download your Gmail inbox metadata and then show you the messages and senders taking up the most room in your inbox.
 
 Deleting or changing mail in Gmail is **out of scope**; use Gmail yourself after you’ve decided what to remove.
 
@@ -36,7 +36,7 @@ Install uv (pick one):
 In the project directory:
 
 ```bash
-cd gmail_top_senders
+cd mail_room
 
 # Optional: pin interpreter (example: 3.12). Omit to use a default uv-managed Python.
 # uv python install 3.12
@@ -50,11 +50,11 @@ That creates a **`.venv`** (if needed) and installs this package plus dependenci
 Run the CLI via **`uv run`** (no need to activate the venv):
 
 ```bash
-uv run python -m gmail_top_senders sync --db gmail_metadata.sqlite
-# same as: uv run gmail-top-senders sync --db gmail_metadata.sqlite
+uv run mail-room sync --db gmail_metadata.sqlite
+uv run mail-room serve --db gmail_metadata.sqlite
 ```
 
-If you prefer activating the environment: `source .venv/bin/activate` (Unix) or `.venv\Scripts\activate` (Windows), then use `python -m gmail_top_senders ...` as usual.
+If you prefer activating the environment: `source .venv/bin/activate` (Unix) or `.venv\Scripts\activate` (Windows), then use `python -m mail_room ...` as usual.
 
 ### Without uv (pip)
 
@@ -74,7 +74,7 @@ Dependencies are read from `pyproject.toml`.
 **Sync** metadata from Gmail into SQLite (default query = all mail **except** Spam and Trash, including Archive—aligned with quota usage):
 
 ```bash
-uv run python -m gmail_top_senders sync --db gmail_metadata.sqlite
+uv run mail-room sync --db gmail_metadata.sqlite
 ```
 
 First run opens a browser to authorize **read-only** access. A refresh token is stored in `token.json`.
@@ -89,14 +89,21 @@ Options:
 - `--max-quota-units-per-minute` - (default 12000) to pace requests
   below the Gmail per-user quota ceiling of 15000 units/min
 
-**Report** from the local database only (no API calls; safe to rerun with different grouping):
+**Web interface** — browse senders and messages in your browser (no API calls; reads local database only):
 
 ```bash
-uv run python -m gmail_top_senders report --db gmail_metadata.sqlite
-uv run python -m gmail_top_senders report --db gmail_metadata.sqlite --group-by display-name --top 30
-uv run python -m gmail_top_senders report --db gmail_metadata.sqlite --sender alice@example.com
-uv run python -m gmail_top_senders report --db gmail_metadata.sqlite --sender alice@example.com --top 40
-uv run python -m gmail_top_senders report --db gmail_metadata.sqlite --csv > top.csv
+uv run mail-room serve --db gmail_metadata.sqlite
+# then open http://127.0.0.1:5000
+```
+
+**Report** — print a ranked table to the terminal (no API calls):
+
+```bash
+uv run mail-room report --db gmail_metadata.sqlite
+uv run mail-room report --db gmail_metadata.sqlite --group-by display-name --top 30
+uv run mail-room report --db gmail_metadata.sqlite --sender alice@example.com
+uv run mail-room report --db gmail_metadata.sqlite --sender alice@example.com --top 40
+uv run mail-room report --db gmail_metadata.sqlite --csv > top.csv
 ```
 
 ## Privacy

@@ -4,8 +4,8 @@ from urllib.parse import urlencode
 
 from flask import Flask, g, render_template, request
 
-from gmail_top_senders import db
-from gmail_top_senders.report import _format_bytes, _format_date
+from mail_room import db
+from mail_room.report import _format_bytes, _format_date
 
 
 PAGE_SIZE = 20
