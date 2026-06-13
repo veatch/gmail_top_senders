@@ -165,6 +165,7 @@ def messages_by_sender(
     sender: str,
     top_n: Optional[int] = None,
     include_deleted: bool = False,
+    exclude_reviewed: bool = False,
     subject_filter: Optional[str] = None,
 ) -> List[Tuple[str, Optional[str], int, Optional[int], str, str, Optional[str], Optional[str]]]:
     """Return rows of individual messages matching a sender string.
@@ -182,6 +183,8 @@ def messages_by_sender(
     params: List = [sender_key, sender_key]
     if not include_deleted:
         extra_conditions.append("deleted_at IS NULL")
+    if exclude_reviewed:
+        extra_conditions.append("kept_at IS NULL")
     if subject_filter:
         extra_conditions.append("LOWER(COALESCE(subject, '')) LIKE '%' || LOWER(?) || '%'")
         params.append(subject_filter)
@@ -256,6 +259,7 @@ def ids_present(conn: sqlite3.Connection, ids: List[str]) -> set:
 def all_messages(
     conn: sqlite3.Connection,
     include_deleted: bool = False,
+    exclude_reviewed: bool = False,
     subject_filter: Optional[str] = None,
 ) -> List[Tuple[str, Optional[str], str, int, Optional[int], str, str, Optional[str], Optional[str]]]:
     """Return all messages ordered by size descending.
@@ -267,6 +271,8 @@ def all_messages(
     params: List = []
     if not include_deleted:
         conditions.append("deleted_at IS NULL")
+    if exclude_reviewed:
+        conditions.append("kept_at IS NULL")
     if subject_filter:
         conditions.append("LOWER(COALESCE(subject, '')) LIKE '%' || LOWER(?) || '%'")
         params.append(subject_filter)

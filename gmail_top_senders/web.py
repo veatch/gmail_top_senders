@@ -50,6 +50,7 @@ def create_app(db_path):
     @app.route("/")
     def messages():
         show_deleted = request.args.get("show_deleted") == "1"
+        hide_reviewed = request.args.get("hide_reviewed") == "1"
         subject = request.args.get("subject", "").strip() or None
 
         try:
@@ -59,22 +60,28 @@ def create_app(db_path):
         except (ValueError, TypeError):
             limit = PAGE_SIZE
 
-        all_rows = db.all_messages(get_db(), include_deleted=show_deleted, subject_filter=subject)
+        all_rows = db.all_messages(
+            get_db(), include_deleted=show_deleted,
+            exclude_reviewed=hide_reviewed, subject_filter=subject,
+        )
         total_messages = len(all_rows)
         total_size = sum(r[3] for r in all_rows)
         rows = all_rows[:limit]
 
         toggle_deleted = _toggle_param(request.args, "show_deleted", "1")
+        toggle_reviewed = _toggle_param(request.args, "hide_reviewed", "1")
         load_more_url = _set_param(request.args, "limit", limit + PAGE_SIZE) if limit < total_messages else None
         show_all_url = _set_param(request.args, "limit", total_messages) if limit < total_messages else None
 
         return render_template("messages.html",
             rows=rows,
             show_deleted=show_deleted,
+            hide_reviewed=hide_reviewed,
             subject=subject or "",
             total_messages=total_messages,
             total_size=total_size,
             toggle_deleted=toggle_deleted,
+            toggle_reviewed=toggle_reviewed,
             load_more_url=load_more_url,
             show_all_url=show_all_url,
         )
@@ -127,6 +134,7 @@ def create_app(db_path):
     @app.route("/sender/<path:sender>")
     def sender_detail(sender):
         show_deleted = request.args.get("show_deleted") == "1"
+        hide_reviewed = request.args.get("hide_reviewed") == "1"
         subject = request.args.get("subject", "").strip() or None
 
         try:
@@ -138,13 +146,15 @@ def create_app(db_path):
 
         all_rows = db.messages_by_sender(
             get_db(), sender, top_n=None,
-            include_deleted=show_deleted, subject_filter=subject,
+            include_deleted=show_deleted, exclude_reviewed=hide_reviewed,
+            subject_filter=subject,
         )
         total_messages = len(all_rows)
         total_size = sum(r[3] for r in all_rows)
         rows = all_rows[:limit]
 
         toggle_deleted = _toggle_param(request.args, "show_deleted", "1")
+        toggle_reviewed = _toggle_param(request.args, "hide_reviewed", "1")
         load_more_url = _set_param(request.args, "limit", limit + SENDER_PAGE_SIZE) if limit < total_messages else None
         show_all_url = _set_param(request.args, "limit", total_messages) if limit < total_messages else None
 
@@ -152,10 +162,12 @@ def create_app(db_path):
             sender=sender,
             rows=rows,
             show_deleted=show_deleted,
+            hide_reviewed=hide_reviewed,
             subject=subject or "",
             total_size=total_size,
             total_messages=total_messages,
             toggle_deleted=toggle_deleted,
+            toggle_reviewed=toggle_reviewed,
             load_more_url=load_more_url,
             show_all_url=show_all_url,
         )

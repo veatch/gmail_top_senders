@@ -23,6 +23,7 @@
   <a href="#" id="bulk-review" class="bulk-action disabled">Mark as reviewed</a>
   <a href="#" id="bulk-unreview" class="bulk-action disabled">Un-review</a>
   <a href="#" id="bulk-delete" class="bulk-action disabled">Delete</a>
+  <a href="{{ toggle_reviewed }}" class="bulk-toggle-reviewed">{% if hide_reviewed %}Show reviewed{% else %}Hide reviewed{% endif %}</a>
 </div>
 
 {% if rows %}
